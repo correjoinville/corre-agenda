@@ -129,7 +129,8 @@ A senha é armazenada somente como hash. Os formulários possuem proteção CSRF
 3. Clique em **New +** e depois em **Blueprint**.
 4. Escolha o repositório do projeto. O Render identificará o arquivo `render.yaml`.
 5. Quando solicitado, informe uma senha forte em `ADMIN_PASSWORD`.
-6. Confirme a criação e aguarde o primeiro deploy.
-7. Abra o endereço terminado em `.onrender.com`. A administração estará em `/admin`.
+6. Confirme que o plano exibido é **Free — US$ 0/mês**. Não prossiga se aparecer cobrança.
+7. Confirme a criação e aguarde o primeiro deploy.
+8. Abra o endereço terminado em `.onrender.com`. A administração estará em `/admin`.
 
 O plano gratuito é adequado somente para demonstração: seu SQLite fica no sistema de arquivos temporário e pode ser recriado depois de reinicializações ou novos deploys. Para uso real, anexe um disco persistente pago e configure `DATABASE_PATH=/var/data/database.db`, ou migre o banco para PostgreSQL.
