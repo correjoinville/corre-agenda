@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block title %}Eventos — Administração{% endblock %}
+{% block body_class %}admin-page{% endblock %}
+{% block content %}
+<section class="admin-shell">
+  <div class="page-title"><div><p class="eyebrow">PAINEL</p><h1>Corridas</h1><p>{{ events|length }} evento{{ 's' if events|length != 1 }} no banco</p></div><a class="button primary" href="{{ url_for('event_create') }}">+ Adicionar corrida</a></div>
+  {% include '_flashes.html' %}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Data</th><th>Corrida</th><th>Cidade</th><th>Status</th><th>Links</th><th><span class="sr-only">Ações</span></th></tr></thead>
+      <tbody>
+      {% for event in events %}
+        <tr><td data-label="Data">{{ event.event_date|date_br }}</td><td data-label="Corrida"><strong>{{ event.name }}</strong></td><td data-label="Cidade">{{ event.city }} — {{ event.state }}</td><td data-label="Status"><span class="status {{ event.status }}">{{ event.status }}</span></td><td data-label="Links"><span class="link-status {{ 'yes' if event.registration_url }}">Inscrição</span> <span class="link-status {{ 'yes' if event.photos_url }}">Fotos</span></td><td class="row-actions"><a href="{{ url_for('event_edit', event_id=event.id) }}">Editar</a><form method="post" action="{{ url_for('event_delete', event_id=event.id) }}" data-confirm="Excluir definitivamente “{{ event.name }}”?"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit">Excluir</button></form></td></tr>
+      {% else %}<tr><td colspan="6" class="no-records">Nenhuma corrida cadastrada.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

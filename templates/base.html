@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Calendário atualizado de corridas de rua.">
+  <title>{% block title %}Corre Agenda{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="{% block body_class %}{% endblock %}">
+  <header class="site-header">
+    <a class="brand" href="{{ url_for('index') }}" aria-label="Corre Agenda — início">
+      <span class="brand-mark">CA</span><span>CORRE<br>AGENDA</span>
+    </a>
+    {% if session.get('admin_id') %}
+      <nav class="admin-nav" aria-label="Administração">
+        <a href="{{ url_for('admin') }}">Eventos</a>
+        <form method="post" action="{{ url_for('logout') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="link-button" type="submit">Sair</button>
+        </form>
+      </nav>
+    {% endif %}
+  </header>
+  <main>{% block content %}{% endblock %}</main>
+  <footer class="site-footer"><span>Calendário de corridas de rua</span><span>Feito para quem corre.</span></footer>
+  <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+</body>
+</html>
