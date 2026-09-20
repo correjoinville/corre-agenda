@@ -1,15 +1,1 @@
-{% extends 'base.html' %}
-{% block title %}Entrar — Corre Agenda{% endblock %}
-{% block body_class %}admin-page{% endblock %}
-{% block content %}
-<section class="auth-card">
-  <p class="eyebrow">ÁREA RESTRITA</p><h1>Administração</h1><p>Entre para atualizar o calendário.</p>
-  {% include '_flashes.html' %}
-  <form method="post" class="stack-form">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <label>Usuário<input name="username" autocomplete="username" required autofocus maxlength="80"></label>
-    <label>Senha<input type="password" name="password" autocomplete="current-password" required></label>
-    <button class="button primary full" type="submit">Entrar</button>
-  </form>
-</section>
-{% endblock %}
+{% extends 'base.html' %}{% block title %}Login · CORRE JOINVILLE{% endblock %}{% block content %}<div class="auth card"><span class="eyebrow">ÁREA RESTRITA</span><h1>Entrar</h1><form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label>Usuário<input name="username" required autofocus></label><label>Senha<input name="password" type="password" required></label><button class="btn primary wide">Entrar</button></form></div>{% endblock %}

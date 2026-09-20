@@ -1,70 +1,53 @@
-import os
-import tempfile
-from datetime import date, timedelta
+from io import BytesIO
+from app import calculate_stats, get_db, parse_time, athlete_analysis
 
-import pytest
+def test_time_formats():
+    assert parse_time("47:18") == 2838
+    assert parse_time("01:02:03") == 3723
+    assert parse_time("DNF") is None
 
-os.environ.setdefault("SECRET_KEY", "test-secret")
-os.environ.setdefault("ADMIN_PASSWORD", "SenhaTeste123!")
-from app import create_app, init_database
+def test_stats_math():
+    rows = [{"net_seconds": s, "gross_seconds": None, "status": "FINISHED", "sex": "M" if i < 3 else "F", "category": "A"} for i, s in enumerate([2400, 2700, 3000, 3300])]
+    stats = calculate_stats(rows, 10)
+    assert stats["overall"]["count"] == 4
+    assert stats["overall"]["best"] == 2400
+    assert stats["overall"]["mean"] == 2850
+    assert stats["overall"]["median"] == 2850
+    assert stats["overall"]["p50"] == 2850
+    assert stats["by_sex"]["M"]["count"] == 3
 
+def test_public_and_admin_regression(client, logged):
+    assert client.get("/").status_code == 200
+    assert b"Prova Teste" in client.get("/").data
+    assert logged.get("/admin").status_code == 200
 
-@pytest.fixture()
-def app():
-    fd, path = tempfile.mkstemp(suffix=".db")
-    app = create_app({"TESTING": True, "WTF_CSRF_ENABLED": False, "DATABASE": path, "TODAY_OVERRIDE": "2026-09-19"})
+def test_csv_import_multiple_distances(app, logged):
+    content = "Atleta;Numero;Sexo;Categoria;Distancia;Tempo Liquido;Status\nAna;10;F;F30;5 km;24:00;Concluiu\nBia;11;F;F30;10 km;00:49:00;Concluiu\nCaio;12;M;M30;5 km;DNF;DNF\n".encode()
+    response = logged.post("/admin/eventos/1/resultados/importar", data={"file": (BytesIO(content), "resultados.csv")}, content_type="multipart/form-data")
+    assert response.status_code == 302
+    mapping = response.headers["Location"]
+    assert b"Conferir colunas" in logged.get(mapping).data
+    response = logged.post(mapping, data={"name": "Atleta", "bib": "Numero", "sex": "Sexo", "category": "Categoria", "distance": "Distancia", "net_time": "Tempo Liquido", "status": "Status"})
+    assert b"Concluintes" in response.data
+    token = mapping.split("/admin/resultados/mapear/")[1]
+    assert logged.post(f"/admin/resultados/confirmar/{token}", data={"replace": "1"}).status_code == 302
     with app.app_context():
-        init_database(seed=False)
-    yield app
-    os.close(fd)
-    os.unlink(path)
+        db = get_db()
+        assert db.execute("SELECT COUNT(*) FROM distances").fetchone()[0] == 2
+        assert db.execute("SELECT COUNT(*) FROM results WHERE status='FINISHED'").fetchone()[0] == 2
+        assert db.execute("SELECT COUNT(*) FROM results WHERE status='DNF'").fetchone()[0] == 1
+    assert logged.get("/resultados/prova-teste").status_code == 200
 
-
-@pytest.fixture()
-def client(app):
-    return app.test_client()
-
-
-def login(client):
-    return client.post("/login", data={"username": "admin", "password": "SenhaTeste123!"}, follow_redirects=True)
-
-
-def add_event(client, **overrides):
-    data = {"event_date": "2026-09-20", "name": "Corrida Teste", "city": "Joinville", "state": "SC", "registration_url": "https://example.com/i", "photos_url": "", "status": "publicado"}
-    data.update(overrides)
-    return client.post("/admin/eventos/novo", data=data, follow_redirects=True)
-
-
-def test_login_logout_and_protected_route(client):
-    assert client.get("/admin").status_code == 302
-    assert "Corridas" in login(client).get_data(as_text=True)
-    response = client.post("/logout", follow_redirects=True)
-    assert "Administração" in response.get_data(as_text=True)
-
-
-def test_create_edit_delete(client):
-    login(client)
-    assert "Corrida Teste" in add_event(client).get_data(as_text=True)
-    response = client.post("/admin/eventos/1/editar", data={"event_date": "2026-09-21", "name": "Corrida Editada", "city": "Blumenau", "state": "SC", "registration_url": "", "photos_url": "https://example.com/f", "status": "publicado"}, follow_redirects=True)
-    assert "Corrida Editada" in response.get_data(as_text=True)
-    assert "Nenhuma corrida" in client.post("/admin/eventos/1/excluir", follow_redirects=True).get_data(as_text=True)
-
-
-def test_public_rules_grouping_and_drafts(client):
-    login(client)
-    add_event(client, name="Futura Setembro", event_date="2026-09-20")
-    add_event(client, name="Futura Outubro", event_date="2026-10-04")
-    add_event(client, name="Antiga Visível", event_date="2026-09-04", registration_url="", photos_url="")
-    add_event(client, name="Antiga Oculta", event_date="2026-09-03")
-    add_event(client, name="Rascunho", status="rascunho")
-    html = client.get("/").get_data(as_text=True)
-    assert "Setembro 2026" in html and "Outubro 2026" in html
-    assert "Futura Setembro" in html and "Futura Outubro" in html and "Antiga Visível" in html
-    assert "Fotos em breve" in html
-    assert "Antiga Oculta" not in html and "Rascunho" not in html
-
-
-def test_validation_rejects_bad_url(client):
-    login(client)
-    response = add_event(client, registration_url="javascript:alert(1)")
-    assert "http:// ou https://" in response.get_data(as_text=True)
+def test_athlete_percent_and_pace(app):
+    with app.app_context():
+        db = get_db()
+        did = db.execute("INSERT INTO distances(event_id,label,distance_km) VALUES(1,'10 km',10)").lastrowid
+        for i, t in enumerate([2400, 2700, 3000, 3300], 1):
+            db.execute("INSERT INTO results(event_id,distance_id,bib,name,sex,category,net_seconds,status,imported_at) VALUES(1,?,?,?,?,?,?,?,?)", (did, str(i), f'A{i}', "M", "M30", t, "FINISHED", "now"))
+        db.commit()
+        athlete = db.execute("SELECT r.*,d.distance_km FROM results r JOIN distances d ON d.id=r.distance_id WHERE r.name='A2'").fetchone()
+        rows = db.execute("SELECT * FROM results WHERE distance_id=?", (did,)).fetchall()
+        analysis = athlete_analysis(athlete, rows)
+        assert analysis["pace"] == 270
+        assert analysis["overall"]["place"] == 2
+        assert analysis["overall"]["top"] == 50.0

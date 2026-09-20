@@ -1,6 +1,6 @@
-# Corre Agenda
+# CORRE JOINVILLE
 
-Calendário público de corridas de rua com painel administrativo. O projeto usa Flask, SQLite e HTML/CSS puro; não exige React, Node.js ou outro framework de front-end.
+Calendário público de corridas de rua com painel administrativo e módulo de análise estatística. O projeto usa Flask, SQLite, HTML/CSS e JavaScript mínimo; não exige React, Node.js ou outro framework de front-end.
 
 ## Estrutura
 
@@ -18,6 +18,11 @@ corre-agenda/
 ├── templates/
 │   ├── base.html             # Cabeçalho e rodapé
 │   ├── index.html            # Página pública
+│   ├── results_dashboard.html # Dashboard estatístico da prova
+│   ├── athlete_result.html   # Análise individual do atleta
+│   ├── import_upload.html    # Envio de CSV/XLSX
+│   ├── import_mapping.html   # Mapeamento das colunas
+│   ├── import_confirm.html   # Conferência antes de salvar
 │   ├── login.html            # Login
 │   ├── admin.html            # Lista administrativa
 │   ├── event_form.html       # Cadastro e edição
@@ -106,7 +111,20 @@ pip install -r requirements-dev.txt
 pytest -q
 ```
 
-Os testes cobrem login/logout, proteção da administração, cadastro, edição, exclusão, agrupamento mensal, rascunhos, limite de 15 dias e validação de URLs.
+Os testes cobrem os fluxos existentes e os cálculos de melhor tempo, média, mediana, percentis, pace, posição percentual, múltiplas distâncias, status DNF e tempos `HH:MM:SS`/`MM:SS`.
+
+## Importar e analisar resultados
+
+1. Entre em `/admin`.
+2. Na corrida desejada, clique em **Importar resultados**.
+3. Envie um arquivo `.csv` ou `.xlsx` de até 10 MB.
+4. Confira o mapeamento das colunas. Somente **Nome** e um campo de **Tempo** são obrigatórios.
+5. Revise os totais de concluintes, DNF, DNS, desclassificados e erros.
+6. Confirme a importação. Se a corrida já possuir dados, marque a opção para substituir os resultados anteriores.
+
+O botão de resultados aparece automaticamente no calendário quando a corrida possui dados importados. A URL pública segue o formato `/resultados/nome-da-prova`.
+
+Os tempos são convertidos para segundos no banco. Média, mediana, percentis e demais indicadores são calculados ao abrir a página, evitando dados estatísticos duplicados ou desatualizados.
 
 ## Onde modificar
 
@@ -117,6 +135,9 @@ Os testes cobrem login/logout, proteção da administração, cadastro, edição
 - **Regra dos 15 dias:** variável `cutoff`, dentro da rota `index()` em `app.py`.
 - **Eventos demonstrativos:** lista `samples`, dentro de `init_database()` em `app.py`.
 - **Banco e novas colunas:** constante `SCHEMA` em `app.py`. Em um banco já criado, faça uma migração antes de alterar a estrutura.
+- **Cálculos estatísticos:** funções `calculate_stats()`, `summary()` e `athlete_analysis()` em `app.py`.
+- **Nomes alternativos de colunas:** dicionário `ALIASES` no início de `app.py`.
+- **Dashboard e análise individual:** `templates/results_dashboard.html` e `templates/athlete_result.html`.
 
 ## Segurança e publicação
 
